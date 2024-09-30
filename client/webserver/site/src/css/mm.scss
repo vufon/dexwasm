@@ -1,0 +1,161 @@
+div[data-handler=mmsettings],
+div[data-handler=mmarchives],
+div[data-handler=mmlogs],
+div[data-handler=mm] {
+  #gapStrategySelect {
+    width: 300px;
+  }
+
+  .gap-factor-input,
+  .lots-input {
+    max-width: 75px;
+  }
+
+  [data-tmpl=value].wide {
+    width: 3rem;
+  }
+
+  .ico-arrowup.ml2px {
+    margin-left: 2px;
+  }
+
+  .pt-pt5 {
+    padding-top: 0.125rem;
+  }
+
+  #profitInput {
+    width: 70px;
+  }
+
+  .bot-type-selector {
+    @include border;
+    @extend .rounded3;
+
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    user-select: none;
+
+    &.disabled {
+      opacity: 0.5;
+    }
+
+    &:not(.disabled) {
+      @extend .hoverbg;
+
+      cursor: pointer;
+
+      &.selected {
+        outline: 2px solid $success;
+        background-color: #7772;
+      }
+    }
+  }
+
+  #marketFilterIcon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.5;
+  }
+
+  #botTypeForm {
+    min-width: 375px;
+  }
+
+  #cexSelection {
+    .cex-selector {
+      user-select: none;
+
+      &.configured:not(.selected) {
+        opacity: 0.8;
+      }
+    }
+
+    &.disabled {
+      .cex-selector.configured {
+        opacity: 0.5;
+      }
+
+      .cex-selector:not(.configured) {
+        cursor: pointer;
+      }
+    }
+
+    &:not(.disabled) {
+      .cex-selector {
+        @extend .hoverbg;
+
+        cursor: pointer;
+
+        &.selected {
+          border-color: $success !important;
+          border-width: 2px !important;
+          background-color: #7772 !important;
+        }
+      }
+    }
+
+    .reconfig {
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+  }
+
+  #quickConfig input[type=number] {
+    width: 100px;
+  }
+
+  #levelSpacingBox.disabled {
+    opacity: 0.5;
+  }
+
+  #placementsChart,
+  [data-tmpl=placementsChart] {
+    height: 100px;
+
+    canvas {
+      @extend .fill-abs;
+    }
+  }
+
+  #buyPlacementsBox,
+  #sellPlacementsBox {
+    .ico-cross {
+      color: var(--text-danger);
+    }
+
+    .ico-plus {
+      color: var(--btn-go-bg);
+    }
+  }
+
+  #noBots {
+    .ico-robot {
+      font-size: 80px;
+      opacity: 0.7;
+    }
+  }
+
+  #dexOrderDetailsForm,
+  #cexOrderDetailsForm,
+  #depositDetailsForm,
+  #withdrawalDetailsForm {
+      min-width: 400px;
+  }
+
+  .allocation-grid {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+
+    .second {
+      grid-column: 2;
+    }
+
+    .third {
+      grid-column: 3;
+    }
+  }
+}
