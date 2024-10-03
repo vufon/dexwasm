@@ -6,10 +6,12 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
@@ -22,9 +24,13 @@ import (
 	_ "decred.org/dcrdex/client/asset/importall"
 	"decred.org/dcrdex/client/core"
 	"decred.org/dcrdex/client/mm"
+	"decred.org/dcrdex/client/mnemonic"
 	"decred.org/dcrdex/client/rpcserver"
 	"decred.org/dcrdex/client/webserver"
 	"decred.org/dcrdex/dex"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/crypto/blake256"
+	"github.com/decred/dcrd/dcrutil/v4"
 )
 
 // appName defines the application name.
@@ -36,9 +42,87 @@ var (
 	log            dex.Logger
 )
 
+func parseChainParams(network dex.Network) (*chaincfg.Params, error) {
+	// Get network settings. Zero value is mainnet, but unknown non-zero cfg.Net
+	// is an error.
+	switch network {
+	case dex.Simnet:
+		return chaincfg.SimNetParams(), nil
+	case dex.Testnet:
+		return chaincfg.TestNet3Params(), nil
+	case dex.Mainnet:
+		return chaincfg.MainNetParams(), nil
+	default:
+		return nil, fmt.Errorf("unknown network ID: %d", uint8(network))
+	}
+}
+
+func AssetSeedAndPass(assetID uint32, appSeed []byte) ([]byte, []byte) {
+	const accountBasedSeedAssetID = 60 // ETH
+	seedAssetID := assetID
+	if ai, _ := asset.Info(assetID); ai != nil && ai.IsAccountBased {
+		seedAssetID = accountBasedSeedAssetID
+	}
+	// Tokens asset IDs shouldn't be passed in, but if they are, return the seed
+	// for the parent ID.
+	if tkn := asset.TokenInfo(assetID); tkn != nil {
+		if ai, _ := asset.Info(tkn.ParentID); ai != nil {
+			if ai.IsAccountBased {
+				seedAssetID = accountBasedSeedAssetID
+			}
+		}
+	}
+
+	b := make([]byte, len(appSeed)+4)
+	copy(b, appSeed)
+	binary.BigEndian.PutUint32(b[len(appSeed):], seedAssetID)
+	s := blake256.Sum256(b)
+	p := blake256.Sum256(s[:])
+	return s[:], p[:]
+}
+
+func assetDataDirectory(assetID uint32) string {
+	defaultDBPath, _, _, _ := setNet(dcrutil.AppDataDir("dexc", false), "mainnet")
+	return filepath.Join(filepath.Dir(defaultDBPath), "assetdb", dex.BipIDSymbol(assetID))
+}
+
+func setNet(applicationDirectory, net string) (dbPath, logPath, mmEventDBPath, mmCfgPath string) {
+	netDirectory := filepath.Join(applicationDirectory, net)
+	logDirectory := filepath.Join(netDirectory, "logs")
+	logFilename := filepath.Join(logDirectory, "dexc.log")
+	mmEventLogDBFilename := filepath.Join(netDirectory, "eventlog.db")
+	mmCfgFilename := filepath.Join(netDirectory, "mm_cfg.json")
+	err := os.MkdirAll(netDirectory, 0700)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create net directory: %v\n", err)
+		os.Exit(1)
+	}
+	err = os.MkdirAll(logDirectory, 0700)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create log directory: %v\n", err)
+		os.Exit(1)
+	}
+	return filepath.Join(netDirectory, "dexc.db"), logFilename, mmEventLogDBFilename, mmCfgFilename
+}
+
 func runCore(cfg *app.Config) error {
 	defer cancel() // for the earliest returns
-
+	seed, _ := mnemonic.New()
+	walletSeed, pass := AssetSeedAndPass(42, seed)
+	bday := uint64(time.Now().Unix())
+	//TODO, handler form config
+	if err := asset.CreateWallet(42, &asset.CreateWalletParams{
+		Type:     "SPV",
+		Seed:     walletSeed,
+		Pass:     pass,
+		Birthday: bday,
+		Settings: make(map[string]string),
+		DataDir:  assetDataDirectory(42),
+		Net:      dex.Mainnet,
+		Logger:   nil,
+	}); err != nil {
+		return fmt.Errorf("Error creating wallet: %w", err)
+	}
 	asset.SetNetwork(cfg.Net)
 
 	// If explicitly running without web server then you must run the rpc

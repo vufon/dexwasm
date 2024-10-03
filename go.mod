@@ -1,6 +1,6 @@
 module decred.org/dcrdex
 
-go 1.21
+go 1.19
 
 require (
 	decred.org/dcrwallet/v4 v4.1.1
@@ -59,6 +59,7 @@ require (
 	github.com/ltcsuite/ltcd v0.23.6-0.20240131072528-64dfa402637a
 	github.com/ltcsuite/ltcd/chaincfg/chainhash v1.0.2
 	github.com/ltcsuite/ltcd/ltcutil v1.1.4-0.20240131072528-64dfa402637a
+	github.com/nlepage/go-wasm-http-server v1.1.0
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/tyler-smith/go-bip39 v1.1.0
@@ -109,7 +110,6 @@ require (
 	github.com/decred/dcrd/lru v1.1.1 // indirect
 	github.com/decred/dcrd/mixing v0.3.0 // indirect
 	github.com/decred/vspd/client/v3 v3.0.0 // indirect
-	github.com/dgraph-io/ristretto v0.0.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.0 // indirect
 	github.com/ethereum/go-verkle v0.1.1-0.20240306133620-7d920df305f0 // indirect
@@ -152,6 +152,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
+	github.com/nlepage/go-js-promise v1.0.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

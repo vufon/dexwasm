@@ -241,6 +241,8 @@ class QuickConfigForm {
     ani.opts.message = intl.prep(intl.ID_CREATING_WALLETS)
     const createWallet = async (walletRow: WalletConfigRow) => {
       const { asset: a, type, checkbox } = walletRow
+      console.log('check asset name: ' + a.name)
+      console.log('check asset id: ' + a.id)
       if (!checkbox.checked) return
       const config: Record<string, string> = {}
       const walletDef = app().walletDefinition(a.id, type)

@@ -210,7 +210,6 @@ func createSPVWallet(pw, seed []byte, dataDir string, extIdx, intIdx, gapLimit u
 			_ = os.Remove(walletDir)
 		}
 	}()
-
 	// Create the wallet database backed by bolt db.
 	db, err := wallet.CreateDB(dbDriver, dbPath)
 	if err != nil {
