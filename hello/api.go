@@ -1,19 +1,15 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall/js"
 	"time"
 
 	"decred.org/dcrdex/client/asset"
@@ -24,7 +20,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/crypto/blake256"
 	"github.com/decred/dcrd/dcrutil/v4"
-	promise "github.com/nlepage/go-js-promise"
+	wasmhttp "github.com/nlepage/go-wasm-http-server"
 )
 
 func main() {
@@ -39,7 +35,7 @@ func main() {
 		}
 	})
 
-	Serve(nil)
+	wasmhttp.Serve(nil)
 
 	select {}
 }
@@ -212,116 +208,4 @@ func parseChainParams(network dex.Network) (*chaincfg.Params, error) {
 	default:
 		return nil, fmt.Errorf("unknown network ID: %d", uint8(network))
 	}
-}
-
-func Request(r js.Value) *http.Request {
-	jsBody := js.Global().Get("Uint8Array").New(promise.Await(r.Call("arrayBuffer")))
-	body := make([]byte, jsBody.Get("length").Int())
-	js.CopyBytesToGo(body, jsBody)
-
-	req := httptest.NewRequest(
-		r.Get("method").String(),
-		r.Get("url").String(),
-		bytes.NewBuffer(body),
-	)
-
-	headersIt := r.Get("headers").Call("entries")
-	for {
-		e := headersIt.Call("next")
-		if e.Get("done").Bool() {
-			break
-		}
-		v := e.Get("value")
-		req.Header.Set(v.Index(0).String(), v.Index(1).String())
-	}
-
-	return req
-}
-
-// ResponseRecorder uses httptest.ResponseRecorder to build a JS Response
-type ResponseRecorder struct {
-	*httptest.ResponseRecorder
-}
-
-// NewResponseRecorder returns a new ResponseRecorder
-func NewResponseRecorder() ResponseRecorder {
-	return ResponseRecorder{httptest.NewRecorder()}
-}
-
-// JSResponse builds and returns the equivalent JS Response
-func (rr ResponseRecorder) JSResponse() js.Value {
-	var res = rr.Result()
-
-	var body js.Value = js.Undefined()
-	if res.ContentLength != 0 {
-		var b, err = ioutil.ReadAll(res.Body)
-		if err != nil {
-			panic(err)
-		}
-		body = js.Global().Get("Uint8Array").New(len(b))
-		js.CopyBytesToJS(body, b)
-	}
-
-	var init = make(map[string]interface{}, 2)
-
-	if res.StatusCode != 0 {
-		init["status"] = res.StatusCode
-	}
-
-	if len(res.Header) != 0 {
-		var headers = make(map[string]interface{}, len(res.Header))
-		for k := range res.Header {
-			headers[k] = res.Header.Get(k)
-		}
-		init["headers"] = headers
-	}
-
-	return js.Global().Get("Response").New(body, init)
-}
-
-// Serve serves HTTP requests using handler or http.DefaultServeMux if handler is nil.
-func Serve(handler http.Handler) func() {
-	var h = handler
-	if h == nil {
-		h = http.DefaultServeMux
-	}
-
-	var prefix = js.Global().Get("wasmhttp").Get("path").String()
-	for strings.HasSuffix(prefix, "/") {
-		prefix = strings.TrimSuffix(prefix, "/")
-	}
-
-	if prefix != "" {
-		var mux = http.NewServeMux()
-		mux.Handle(prefix+"/", http.StripPrefix(prefix, h))
-		h = mux
-	}
-
-	var cb = js.FuncOf(func(_ js.Value, args []js.Value) interface{} {
-		var resPromise, resolve, reject = promise.New()
-
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					if err, ok := r.(error); ok {
-						reject(fmt.Sprintf("wasmhttp: panic: %+v\n", err))
-					} else {
-						reject(fmt.Sprintf("wasmhttp: panic: %v\n", r))
-					}
-				}
-			}()
-
-			var res = NewResponseRecorder()
-
-			h.ServeHTTP(res, Request(args[0]))
-
-			resolve(res.JSResponse())
-		}()
-
-		return resPromise
-	})
-
-	js.Global().Get("wasmhttp").Call("setHandler", cb)
-
-	return cb.Release
 }
