@@ -52,6 +52,7 @@ type Driver interface {
 type Creator interface {
 	Exists(walletType, dataDir string, settings map[string]string, net dex.Network) (bool, error)
 	Create(*CreateWalletParams) error
+	CreateWasmWallet(*CreateWalletParams) error
 }
 
 func withDriver(assetID uint32, f func(Driver) error) error {
@@ -125,6 +126,17 @@ func CreateWallet(assetID uint32, seedParams *CreateWalletParams) error {
 			return fmt.Errorf("driver has no Create method")
 		}
 		return creator.Create(seedParams)
+	})
+}
+
+// CreateWallet creates a new wallet. Only use Create for seeded wallet types.
+func CreateWasmWallet(assetID uint32, seedParams *CreateWalletParams) error {
+	return withDriver(assetID, func(drv Driver) error {
+		creator, is := drv.(Creator)
+		if !is {
+			return fmt.Errorf("driver has no Create method")
+		}
+		return creator.CreateWasmWallet(seedParams)
 	})
 }
 

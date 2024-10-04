@@ -869,6 +869,17 @@ type Wallet struct {
 	Disabled    bool
 }
 
+type WasmWallet struct {
+	AssetID       uint32
+	Type          string
+	Settings      map[string]string
+	Balance       *Balance
+	EncryptedPW   string
+	EncryptedSeed string
+	Address       string
+	Disabled      bool
+}
+
 // Encode encodes the Wallet to a versioned blob.
 func (w *Wallet) Encode() []byte {
 	return versionedBytes(1).

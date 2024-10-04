@@ -540,6 +540,32 @@ func (d *Driver) Create(params *asset.CreateWalletParams) error {
 		recoveryCfg.NumInternalAddresses, recoveryCfg.GapLimit, chainParams)
 }
 
+// Create creates a new SPV wallet.
+func (d *Driver) CreateWasmWallet(params *asset.CreateWalletParams) error {
+	if params.Type != walletTypeSPV {
+		return fmt.Errorf("SPV is the only seeded wallet type. required = %q, requested = %q", walletTypeSPV, params.Type)
+	}
+	if len(params.Seed) == 0 {
+		return errors.New("wallet seed cannot be empty")
+	}
+	if len(params.DataDir) == 0 {
+		return errors.New("must specify wallet data directory")
+	}
+	chainParams, err := parseChainParams(params.Net)
+	if err != nil {
+		return fmt.Errorf("error parsing chain params: %w", err)
+	}
+
+	recoveryCfg := new(RecoveryCfg)
+	err = config.Unmapify(params.Settings, recoveryCfg)
+	if err != nil {
+		return err
+	}
+
+	return createWasmSPVWallet(params.Pass, params.Seed, params.DataDir, recoveryCfg.NumExternalAddresses,
+		recoveryCfg.NumInternalAddresses, recoveryCfg.GapLimit, chainParams)
+}
+
 // MinLotSize calculates the minimum bond size for a given fee rate that avoids
 // dust outputs on the swap and refund txs, assuming the maxFeeRate doesn't
 // change.

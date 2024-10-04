@@ -266,6 +266,74 @@ func createSPVWallet(pw, seed []byte, dataDir string, extIdx, intIdx, gapLimit u
 	return nil
 }
 
+func createWasmSPVWallet(pw, seed []byte, dataDir string, extIdx, intIdx, gapLimit uint32, chainParams *chaincfg.Params) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	dbPath := filepath.Join(dataDir, walletDbName)
+	exists, err := fileExists(dbPath)
+	if err != nil {
+		return fmt.Errorf("error checking file existence for %q: %w", dbPath, err)
+	}
+	if exists {
+		return fmt.Errorf("database file already exists at %q", dbPath)
+	}
+	// Create the wallet database backed by bolt db.
+	db, err := wallet.CreateDB(dbDriver, dbPath)
+	if err != nil {
+		return fmt.Errorf("CreateDB error: %w", err)
+	}
+
+	// Initialize the newly created database for the wallet before opening.
+	err = wallet.Create(ctx, db, nil, pw, seed, chainParams)
+	if err != nil {
+		return fmt.Errorf("wallet.Create error: %w", err)
+	}
+
+	// Open the newly-created wallet.
+	w, err := wallet.Open(ctx, newWalletConfig(db, chainParams, gapLimit))
+	if err != nil {
+		return fmt.Errorf("wallet.Open error: %w", err)
+	}
+
+	defer func() {
+		if err := db.Close(); err != nil {
+			fmt.Println("Error closing database:", err)
+		}
+	}()
+
+	err = w.UpgradeToSLIP0044CoinType(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = w.Unlock(ctx, pw, nil)
+	if err != nil {
+		return fmt.Errorf("error unlocking wallet: %w", err)
+	}
+
+	err = w.SetAccountPassphrase(ctx, defaultAcct, pw)
+	if err != nil {
+		return fmt.Errorf("error setting Decred account %d passphrase: %v", defaultAcct, err)
+	}
+
+	err = setupMixingAccounts(ctx, w, pw)
+	if err != nil {
+		return fmt.Errorf("error setting up mixing accounts: %v", err)
+	}
+
+	w.Lock()
+
+	if extIdx > 0 || intIdx > 0 {
+		err = extendAddresses(ctx, extIdx, intIdx, w)
+		if err != nil {
+			return fmt.Errorf("failed to set starting address indexes: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // If we're running on simnet, add some tspends and treasury keys.
 func (w *spvWallet) initializeSimnetTspends(ctx context.Context) {
 	if w.chainParams.Net != wire.SimNet {
